@@ -6,10 +6,37 @@ package mr
 // remember to capitalize all names.
 //
 
-import "os"
+import (
+	"os"
+	"time"
+)
 import "strconv"
 
-//
+const Map = 1
+const Reduce = 2
+const Waiting = 3
+const Finished = 4
+
+type Task struct {
+	TaskType int
+	Filename string
+	NReduce  int
+	TaskId   int
+	Finished bool
+	Start    time.Time
+}
+type TaskRequest struct {
+	X int
+}
+
+type TaskReply struct {
+	XTask            Task
+	NumMapTask       int
+	NumReduceTask    int
+	CurNumMapTask    int
+	CurNumReduceTask int
+}
+
 // example to show how to declare the arguments
 // and reply for an RPC.
 //
@@ -25,7 +52,7 @@ type ExampleReply struct {
 // Add your RPC definitions here.
 
 type RequestTaskArgs struct {
-	WorkerId int
+	status int
 }
 
 type RequestTaskReply struct {
