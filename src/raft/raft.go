@@ -188,17 +188,39 @@ type RequestVoteReply struct {
 // example RequestVote RPC handler.
 func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	// Your code here (2A, 2B).
+	//如果args的term小于当前节点任期或者两者任期相等但是已经投过票且投票节点不是发起者{
+	//	返回结果，reply.voteGranted = false;
+	//}
 	if args.Term < rf.currentTerm {
 		reply.VoteGranted = false
 		reply.Term = rf.currentTerm
 		return
 	}
+	//如果args.term 大于当前节点任期，说明当前节点已经落后 {
+	//	改变自身状态为Follower
+	//	重置节点自身的term和投票结果votedFor
+	//}
+	if args.Term > rf.currentTerm {
+		rf.currentTerm = args.Term
+		rf.state = Follower
+		rf.votedFor = -1
+	}
+
+	//如果当前节点没有投过票或者已经投过票且投票节点是发起者且发起者的日志比当前节点新{
+	//	更新当前节点的任期
+	//	更新当前节点的投票结果
+	//	返回结果，reply.voteGranted = true;
+	//}
 	if rf.votedFor == -1 || rf.votedFor == args.CandidateId && args.LastLogIndex >= rf.commitIndex {
 		rf.votedFor = args.CandidateId
 		reply.VoteGranted = true
 		reply.Term = rf.currentTerm
 		return
 	}
+
+	//如果当前节点的任期大于发起者的任期{
+	//	返回结果，reply.voteGranted = false;
+	//}
 	if (args.LastLogTerm > rf.logs[len(rf.logs)-1].Term) || (args.LastLogTerm == rf.logs[len(rf.logs)-1].Term && args.LastLogIndex >= len(rf.logs)-1) {
 		rf.commitIndex = args.LastLogIndex
 		rf.votedFor = args.CandidateId
@@ -376,6 +398,48 @@ func (rf *Raft) ticker() {
 
 func (rf *Raft) StartElection() {
 
+	args := RequestVoteArgs{
+		Term:         rf.currentTerm,
+		CandidateId:  rf.me,
+		LastLogIndex: rf.commitIndex,
+		LastLogTerm:  rf.logs[rf.commitIndex].Term,
+	}
+	for i := 0; i < len(rf.peers); i++ {
+		//发起一个协程向各个节点通过RPC发起投票请求
+		//发起一个协程向各个节点通过RPC发起投票请求{
+		//	如果当前节点任期和args的任期参数相同且状态为Candidate则进行后续判断{
+		//		如果返回结果正确{
+		//			则统计票数
+		//			当票数大于一般时转换为Leader节点，发起心跳。
+		//		}
+		//		如果返回结果任期大于当前节点任期则转换为Follower节点
+		//	}
+		//}
+		if i != rf.me {
+			if rf.state == Candidate && rf.currentTerm == args.Term {
+				go func(i int) {
+					reply := RequestVoteReply{}
+					ok := rf.sendRequestVote(i, &args, &reply)
+					if ok {
+						if reply.Term > rf.currentTerm {
+							rf.currentTerm = reply.Term
+							rf.state = Follower
+							rf.votedFor = -1
+						} else if reply.VoteGranted {
+							rf.votedFor++
+							if rf.votedFor > len(rf.peers)/2 {
+								rf.state = Leader
+								rf.BroadcastHeartBeat()
+							}
+						}
+					}
+				}(i)
+			}
+
+		}
+
+	}
+
 }
 
 func (rf *Raft) BroadcastHeartBeat() {
@@ -442,6 +506,15 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.me = me
 
 	// Your initialization code here (2A, 2B, 2C).
+	rf.applyChan = applyCh
+	rf.state = Follower
+	rf.currentTerm = 0
+	rf.votedFor = -1
+	rf.logs = make([]LogEntry, 1)
+	rf.commitIndex = 0
+	rf.lastApplied = 0
+	rf.nextIndex = make([]int, len(peers))
+	rf.matchIndex = make([]int, len(peers))
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
