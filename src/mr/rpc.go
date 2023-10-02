@@ -52,7 +52,7 @@ type ExampleReply struct {
 // Add your RPC definitions here.
 
 type RequestTaskArgs struct {
-	status int
+	Status int
 }
 
 type RequestTaskReply struct {

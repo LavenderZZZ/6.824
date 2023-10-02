@@ -198,7 +198,7 @@ func Calltask(task *Task) bool {
 	// declare an argument structure.
 	args := RequestTaskArgs{}
 	if task.TaskType == Waiting {
-		args.status = Waiting
+		args.Status = Waiting
 	}
 	// send the RPC request, wait for the reply.
 	// the "Coordinator.Example" tells the

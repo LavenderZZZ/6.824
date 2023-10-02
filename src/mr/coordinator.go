@@ -70,7 +70,7 @@ func (c *Coordinator) Heartbeat(args *RequestTaskArgs, reply *Task) error {
 			reply.Start = time.Now()
 			return nil
 		} else {
-			if args.status != Waiting {
+			if args.Status != Waiting {
 				reply.TaskType = Waiting
 			} else {
 				for i := 0; i < len(c.MapTasks); i++ {
@@ -88,7 +88,7 @@ func (c *Coordinator) Heartbeat(args *RequestTaskArgs, reply *Task) error {
 			reply.Start = time.Now()
 			return nil
 		} else {
-			if args.status != Waiting {
+			if args.Status != Waiting {
 				reply.TaskType = Waiting
 			} else {
 				for i := 0; i < len(c.ReduceTasks); i++ {
